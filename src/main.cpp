@@ -1,3 +1,4 @@
+#include <chrono>
 #include <iostream>
 
 #include <SFML/Graphics.hpp>
@@ -35,6 +36,9 @@ int main() {
     sf::Shader shader(std::filesystem::path{"main.vert"}, std::filesystem::path{"main.frag"});
     // TODO: eventually add another Shader here which uses the blur fragment shader,
     // also create a sf::RenderTexture...
+    auto start = std::chrono::steady_clock::now();
+    sf::RenderTexture rt(window.getSize());
+    sf::Shader blurShader(std::filesystem::path{"main.vert"}, std::filesystem::path{"blur.frag"});
     while (window.isOpen()) {
         while (auto e = window.pollEvent()) {
             if (e->is<sf::Event::Closed>()) {
@@ -43,8 +47,20 @@ int main() {
         }
         // TODO: set shader uniforms and eventually draw into
         // a RenderTexture first before postprocessing into the window target.
+        rt.clear();
+        shader.setUniform("windowSize", sf::Vector2f(window.getSize()));
+        sf::Vector2i mouse = sf::Mouse::getPosition(window);
+        shader.setUniform("mousePos", sf::Vector2f(mouse.x, float(window.getSize().y) - mouse.y));
+        float elapsed =
+            std::chrono::duration<float>(std::chrono::steady_clock::now() - start).count();
+        shader.setUniform("time", elapsed);
+        rt.draw(fullscreenTriangle, &shader);
+        rt.display();
+
         window.clear(sf::Color::Black);
-        window.draw(fullscreenTriangle, &shader);
+        blurShader.setUniform("texture", rt.getTexture());
+        blurShader.setUniform("windowSize", sf::Vector2f(window.getSize()));
+        window.draw(fullscreenTriangle, &blurShader);
         window.display();
     }
     return 0;
